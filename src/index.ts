@@ -16,7 +16,7 @@ program
   .option('--type <transport>', 'Transport type: local, http, https, sse', process.env.MCP_TYPE || 'https')
   .option('--url <url>', 'Server URL (for remote connections)', process.env.MCP_URL)
   .option('--cmd <command>', 'Command to run local MCP server', process.env.MCP_CMD)
-  .option('--tool <name>', 'Tool name to call')
+  .option('--tool <n>', 'Tool name to call')
   .option('--fields <params>', 'Simple parameter syntax: "key=value,key2=value2"')
   .option('--json', 'Output raw JSON (no formatting)', false)
   .option('--quiet', 'Suppress non-error output', false)
@@ -52,7 +52,7 @@ program
       await client.disconnect();
       process.exit(0);
     } catch (error) {
-      handleError(error, program.opts());
+      await handleError(error, program.opts());
     }
   });
 
@@ -67,8 +67,16 @@ program
       // Determine tool name from argument or --tool option
       const tool = toolName || options.tool;
       if (!tool) {
-        console.error(chalk.red('Error: Tool name required. Use --tool <name> or provide as argument.'));
+        console.error(chalk.red('Error: Tool name required. Use --tool <n> or provide as argument.'));
         process.exit(1);
+      }
+
+      // Check for common command mistakes
+      if (tool === 'tools' || tool === 'list' || tool === 'ls') {
+        const error = new Error(`Unknown command: ${tool}`);
+        (error as any).code = 'TOOL_NOT_FOUND';
+        (error as any).toolName = tool;
+        await handleError(error, options);
       }
       
       // Parse parameters from --fields or JSON data
@@ -109,18 +117,38 @@ program
         console.error(`Calling tool '${tool}' with parameters:`, params);
       }
       
-      const result = await client.callTool(tool, params);
-      
+      let result;
+      try {
+        result = await client.callTool(tool, params);
+      } catch (error: any) {
+        // Always attach tool name for suggestion
+        if (error && !error.toolName) {
+          error.toolName = tool;
+        }
+        // If error message contains 'Unknown tool', set code
+        if (error && error.message && error.message.match(/unknown tool|not found/i) && !error.code) {
+          error.code = 'TOOL_NOT_FOUND';
+        }
+        await handleError(error, options, client);
+      }
+
       if (options.json) {
         console.log(JSON.stringify({ success: true, tool, result }, null, 2));
       } else {
         console.log(formatOutput(result, options));
       }
-      
+
       await client.disconnect();
       process.exit(0);
-    } catch (error) {
-      handleError(error, program.opts());
+    } catch (error: any) {
+      // Always attach tool name for suggestion if possible
+      if (error && !error.toolName && typeof error?.tool !== 'undefined') {
+        error.toolName = error.tool;
+      }
+      if (error && error.message && error.message.match(/unknown tool|not found/i) && !error.code) {
+        error.code = 'TOOL_NOT_FOUND';
+      }
+      await handleError(error, program.opts(), undefined);
     }
   });
 
@@ -163,7 +191,20 @@ function formatInspectOutput(tools: any, options: any): string {
       : `mcp-client --type ${options.type}${options.cmd ? ` --cmd "${options.cmd}"` : ''}`;
     
     if (tool.inputSchema?.properties && Object.keys(tool.inputSchema.properties).length > 0) {
-      const fieldsList = Object.keys(tool.inputSchema.properties).map(p => `${p}=VALUE`).join(',');
+      // Build type-specific placeholder values
+      const placeholders = Object.entries(tool.inputSchema.properties).map(([name, schema]: [string, any]) => {
+        const type = schema.type || 'string';
+        let placeholder: string;
+        if (type === 'boolean') {
+          placeholder = 'false';
+        } else if (type === 'number' || type === 'integer') {
+          placeholder = '0';
+        } else {
+          placeholder = 'your_string_value';
+        }
+        return `${name}=${placeholder}`;
+      });
+      const fieldsList = placeholders.join(',');
       output += `  ${chalk.gray('Usage:')} ${baseCmd} --tool ${tool.name} --fields "${fieldsList}"\n`;
     } else {
       output += `  ${chalk.gray('Usage:')} ${baseCmd} --tool ${tool.name}\n`;

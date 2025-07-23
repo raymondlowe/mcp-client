@@ -1,5 +1,42 @@
 import chalk from 'chalk';
 
+// Simple Levenshtein distance for string similarity
+function levenshtein(a: string, b: string): number {
+  const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + 1
+        );
+      }
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+// Find the most similar tool name
+export function suggestSimilarTool(input: string, available: string[]): string | null {
+  if (!available.length) return null;
+  let minDist = Infinity;
+  let best: string | null = null;
+  for (const name of available) {
+    const dist = levenshtein(input, name);
+    if (dist < minDist) {
+      minDist = dist;
+      best = name;
+    }
+  }
+  // Only suggest if reasonably close
+  return minDist <= 3 ? best : null;
+}
+
 export function parseFields(fieldsStr: string): Record<string, any> {
   const params: Record<string, any> = {};
   
@@ -65,19 +102,26 @@ export function formatOutput(result: any, options: any): string {
   return String(result);
 }
 
-export function handleError(error: any, options: any): never {
+export async function handleError(error: any, options: any, client?: any): Promise<never> {
   const message = error.message || String(error);
+
+  let suggestion = '';
   
+  // Suggest using inspect for any TOOL_NOT_FOUND
+  if (error.code === 'TOOL_NOT_FOUND') {
+    suggestion = `\n${chalk.gray('Use')} ${chalk.cyan('inspect')} ${chalk.gray('to list available tools')}`;
+  }
+
   if (options.json) {
     console.log(JSON.stringify({
       success: false,
-      error: message,
+      error: message + (suggestion ? ` ${suggestion}` : ''),
       code: error.code || 'UNKNOWN_ERROR'
     }, null, 2));
   } else {
-    console.error(chalk.red(`Error: ${message}`));
+    console.error(chalk.red(`Error: ${message}`) + (suggestion ? suggestion : ''));
   }
-  
+
   // Exit with appropriate code
   if (error.code === 'TOOL_NOT_FOUND') {
     process.exit(2);
