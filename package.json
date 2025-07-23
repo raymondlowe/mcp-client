@@ -1,11 +1,12 @@
 {
   "name": "@raymondlowe/mcp-client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A lightweight command-line client for testing connections to MCP (Model Context Protocol) servers",
   "main": "dist/index.js",
-  "bin": {
-    "mcp-client": "dist/index.js"
-  },
+"bin": {
+  "mcp-client": "dist/index.js",
+  "@raymondlowe/mcp-client": "dist/index.js"
+}
   "type": "module",
   "scripts": {
     "build": "tsc",
