@@ -178,6 +178,7 @@ Tool: info
 
 ## Development
 
+
 ```bash
 # Clone and install
 git clone https://github.com/raymondlowe/mcp-client
@@ -187,7 +188,18 @@ npm install
 # Development
 npm run dev -- --help
 npm run build
-npm run test
+npm test   # Runs all tests using Vitest
+```
+
+If you see output like this, all tests have passed and your setup is correct:
+
+```
+✓ src/test/tools.test.ts (15)
+✓ src/test/client.test.ts (24)
+✓ src/test/integration.test.ts (15)
+
+Test Files  3 passed (3)
+     Tests  54 passed (54)
 ```
 
 ## License
