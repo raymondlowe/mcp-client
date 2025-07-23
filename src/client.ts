@@ -1,4 +1,7 @@
 import { validateUrl, isValidTransport } from './utils.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
@@ -85,7 +88,7 @@ export class MCPClient {
     this.client = new Client(
       {
         name: "mcp-client",
-        version: "1.0.0"
+        version
       }
     );
 
@@ -101,7 +104,7 @@ export class MCPClient {
     this.client = new Client(
       {
         name: "mcp-client",
-        version: "1.0.0"
+        version
       }
     );
 
@@ -117,7 +120,7 @@ export class MCPClient {
     this.client = new Client(
       {
         name: "mcp-client",
-        version: "1.0.0"
+        version
       }
     );
 
@@ -215,7 +218,7 @@ export class MCPClient {
     this.client = new Client(
       {
         name: "mcp-client",
-        version: "1.0.0"
+        version
       }
     );
 
