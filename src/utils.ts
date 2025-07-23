@@ -100,5 +100,5 @@ export function validateUrl(url: string): boolean {
 }
 
 export function isValidTransport(transport: string): boolean {
-  return ['local', 'http', 'https', 'sse'].includes(transport);
+  return ['local', 'http', 'https', 'sse', 'test'].includes(transport);
 }
