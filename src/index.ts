@@ -33,27 +33,26 @@ program
   .action(async () => {
     try {
       const options = program.opts();
-      
       if (options.verbose) {
         console.error(`Connecting to ${options.url || 'local server'} via ${options.type}...`);
       }
-      
       const client = new MCPClient(options as MCPClientOptions);
       await client.connect();
-      
       if (options.verbose) {
         console.error('Connected successfully, fetching tools...');
       }
-      
       const tools = await client.listTools();
-      
       if (options.json) {
         console.log(JSON.stringify(tools, null, 2));
       } else {
         console.log(formatInspectOutput(tools, options));
       }
-      
-      await client.disconnect();
+      // Ensure HTTP/HTTPS disconnect uses DELETE
+      if (["http", "https"].includes((options.type || '').toLowerCase()) && typeof client.disconnectHttpSession === 'function') {
+        await client.disconnectHttpSession();
+      } else {
+        await client.disconnect();
+      }
       process.exit(0);
     } catch (error) {
       await handleError(error, program.opts());
@@ -67,14 +66,12 @@ program
   .action(async (toolName, data) => {
     try {
       const options = program.opts();
-      
       // Determine tool name from argument or --tool option
       const tool = toolName || options.tool;
       if (!tool) {
         console.error(chalk.red('Error: Tool name required. Use --tool <n> or provide as argument.'));
         process.exit(1);
       }
-
       // Check for common command mistakes
       if (tool === 'tools' || tool === 'list' || tool === 'ls') {
         const error = new Error(`Unknown command: ${tool}`);
@@ -82,7 +79,6 @@ program
         (error as any).toolName = tool;
         await handleError(error, options);
       }
-      
       // Parse parameters from --fields or JSON data
       let params = {};
       if (options.fields) {
@@ -108,19 +104,14 @@ program
           }
         }
       }
-      
       const client = new MCPClient(options as MCPClientOptions);
-      
       if (options.verbose) {
         console.error(`Connecting to ${options.url || 'local server'} via ${options.type}...`);
       }
-      
       await client.connect();
-      
       if (options.verbose) {
         console.error(`Calling tool '${tool}' with parameters:`, params);
       }
-      
       let result;
       try {
         result = await client.callTool(tool, params);
@@ -135,14 +126,17 @@ program
         }
         await handleError(error, options, client);
       }
-
       if (options.json) {
         console.log(JSON.stringify({ success: true, tool, result }, null, 2));
       } else {
         console.log(formatOutput(result, options));
       }
-
-      await client.disconnect();
+      // Ensure HTTP/HTTPS disconnect uses DELETE
+      if (["http", "https"].includes((options.type || '').toLowerCase()) && typeof client.disconnectHttpSession === 'function') {
+        await client.disconnectHttpSession();
+      } else {
+        await client.disconnect();
+      }
       process.exit(0);
     } catch (error: any) {
       // Always attach tool name for suggestion if possible

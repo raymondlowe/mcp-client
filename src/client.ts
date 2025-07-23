@@ -17,6 +17,29 @@ export interface MCPClientOptions {
 }
 
 export class MCPClient {
+  /**
+   * For HTTP/HTTPS transports, send a DELETE to the server to close the session.
+   */
+  async disconnectHttpSession(): Promise<void> {
+    if ((this.options.type === 'http' || this.options.type === 'https') && this.options.url) {
+      try {
+        const url = new URL(this.options.url);
+        // If the server expects a specific session endpoint, adjust here
+        // Use global fetch if available, otherwise require('node-fetch')
+        let fetchFn: any;
+        if (typeof fetch === 'function') {
+          fetchFn = fetch;
+        } else {
+          fetchFn = (await import('node-fetch')).default as any;
+        }
+        await fetchFn(url.toString(), { method: 'DELETE' });
+      } catch (err) {
+        // Ignore errors on disconnect
+      }
+    }
+    // Always call the normal disconnect as well
+    await this.disconnect();
+  }
   private options: MCPClientOptions;
   private client: Client | null = null;
   private transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport | InMemoryTransport | null = null;
