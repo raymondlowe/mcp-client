@@ -14,9 +14,11 @@ export interface MCPClientOptions {
   cmd?: string;
   quiet?: boolean;
   transport?: InMemoryTransport; // For testing only
+  sessionId?: string; // For HTTP session tracking
 }
 
 export class MCPClient {
+  private sessionId?: string;
   /**
    * For HTTP/HTTPS transports, send a DELETE to the server to close the session.
    */
@@ -24,15 +26,23 @@ export class MCPClient {
     if ((this.options.type === 'http' || this.options.type === 'https') && this.options.url) {
       try {
         const url = new URL(this.options.url);
-        // If the server expects a specific session endpoint, adjust here
-        // Use global fetch if available, otherwise require('node-fetch')
         let fetchFn: any;
         if (typeof fetch === 'function') {
           fetchFn = fetch;
         } else {
           fetchFn = (await import('node-fetch')).default as any;
         }
-        await fetchFn(url.toString(), { method: 'DELETE' });
+        // Use sessionId from property or options
+        const sessionId = this.sessionId || this.options.sessionId;
+        if (!sessionId) {
+          throw new Error('No sessionId set for HTTP disconnect');
+        }
+        await fetchFn(url.toString(), {
+          method: 'DELETE',
+          headers: {
+            'mcp-session-id': sessionId
+          }
+        });
       } catch (err) {
         // Ignore errors on disconnect
       }
@@ -46,6 +56,7 @@ export class MCPClient {
 
   constructor(options: MCPClientOptions) {
     this.options = options;
+    this.sessionId = options.sessionId;
     this.validateOptions();
   }
 
