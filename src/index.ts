@@ -5,11 +5,15 @@ import chalk from 'chalk';
 import { MCPClient, MCPClientOptions } from './client.js';
 import { parseFields, formatOutput, handleError } from './utils.js';
 import { readStdin } from './stdin.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 
 program
   .name('mcp-client')
   .description('A lightweight CLI client for MCP (Model Context Protocol) servers')
-  .version('1.0.0');
+  .version(version);
 
 // Global options
 program
