@@ -3,18 +3,20 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 export interface MCPClientOptions {
   type: string;
   url?: string;
   cmd?: string;
   quiet?: boolean;
+  transport?: InMemoryTransport; // For testing only
 }
 
 export class MCPClient {
   private options: MCPClientOptions;
   private client: Client | null = null;
-  private transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport | null = null;
+  private transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport | InMemoryTransport | null = null;
 
   constructor(options: MCPClientOptions) {
     this.options = options;
@@ -41,6 +43,12 @@ export class MCPClient {
 
   async connect(): Promise<void> {
     try {
+      // Use provided transport for testing
+      if (this.options.transport) {
+        await this.connectInMemory();
+        return;
+      }
+
       switch (this.options.type) {
         case 'local':
           await this.connectLocal();
@@ -144,10 +152,38 @@ export class MCPClient {
         arguments: params
       });
       
+      // Check if the response indicates an error
+      if (response.isError) {
+        // Handle the error based on content
+        const content = response.content as any[];
+        const errorText = content?.[0]?.text || 'Unknown error';
+        
+        if (errorText.includes('not found') || errorText.includes('Tool not found')) {
+          const newError = new Error(`Tool '${toolName}' not found`);
+          (newError as any).code = 'TOOL_NOT_FOUND';
+          throw newError;
+        } else {
+          const newError = new Error(errorText);
+          (newError as any).code = 'SERVER_ERROR';
+          throw newError;
+        }
+      }
+      
       return response;
     } catch (error: any) {
-      // Handle specific MCP error cases
-      if (error.message && error.message.includes('not found')) {
+      // Handle JSON-RPC error codes
+      if (error.code === -32601) { // MethodNotFound
+        const newError = new Error(`Tool '${toolName}' not found`);
+        (newError as any).code = 'TOOL_NOT_FOUND';
+        throw newError;
+      } else if (error.code === -32602) { // InvalidParams
+        const newError = new Error(`Invalid parameters for tool '${toolName}': ${error.message || 'Invalid parameters'}`);
+        (newError as any).code = 'INVALID_PARAMS';
+        throw newError;
+      } else if (typeof error.code === 'string') {
+        // Re-throw errors that already have string codes (our custom ones)
+        throw error;
+      } else if (error.message && error.message.includes('not found')) {
         const newError = new Error(`Tool '${toolName}' not found`);
         (newError as any).code = 'TOOL_NOT_FOUND';
         throw newError;
@@ -169,6 +205,22 @@ export class MCPClient {
       this.transport = null;
     }
     this.client = null;
+  }
+
+  private async connectInMemory(): Promise<void> {
+    // Use provided in-memory transport for testing
+    this.transport = this.options.transport!;
+
+    // Create MCP client
+    this.client = new Client(
+      {
+        name: "mcp-client",
+        version: "1.0.0"
+      }
+    );
+
+    // Connect to the server
+    await this.client.connect(this.transport);
   }
 
 }
