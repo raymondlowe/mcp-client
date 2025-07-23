@@ -1,6 +1,6 @@
 {
   "name": "@raymondlowe/mcp-client",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A lightweight command-line client for testing connections to MCP (Model Context Protocol) servers",
   "main": "dist/index.js",
   "bin": {
