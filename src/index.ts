@@ -13,13 +13,14 @@ program
 
 // Global options
 program
-  .option('--type <transport>', 'Transport type: local, http, https, sse', 'https')
-  .option('--url <url>', 'Server URL (for remote connections)')
-  .option('--cmd <command>', 'Command to run local MCP server')
+  .option('--type <transport>', 'Transport type: local, http, https, sse', process.env.MCP_TYPE || 'https')
+  .option('--url <url>', 'Server URL (for remote connections)', process.env.MCP_URL)
+  .option('--cmd <command>', 'Command to run local MCP server', process.env.MCP_CMD)
   .option('--tool <name>', 'Tool name to call')
   .option('--fields <params>', 'Simple parameter syntax: "key=value,key2=value2"')
   .option('--json', 'Output raw JSON (no formatting)', false)
-  .option('--quiet', 'Suppress non-error output', false);
+  .option('--quiet', 'Suppress non-error output', false)
+  .option('--verbose', 'Show detailed output', false);
 
 // Inspect command
 program
@@ -28,8 +29,17 @@ program
   .action(async () => {
     try {
       const options = program.opts();
+      
+      if (options.verbose) {
+        console.error(`Connecting to ${options.url || 'local server'} via ${options.type}...`);
+      }
+      
       const client = new MCPClient(options as MCPClientOptions);
       await client.connect();
+      
+      if (options.verbose) {
+        console.error('Connected successfully, fetching tools...');
+      }
       
       const tools = await client.listTools();
       
@@ -88,7 +98,16 @@ program
       }
       
       const client = new MCPClient(options as MCPClientOptions);
+      
+      if (options.verbose) {
+        console.error(`Connecting to ${options.url || 'local server'} via ${options.type}...`);
+      }
+      
       await client.connect();
+      
+      if (options.verbose) {
+        console.error(`Calling tool '${tool}' with parameters:`, params);
+      }
       
       const result = await client.callTool(tool, params);
       

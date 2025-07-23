@@ -40,11 +40,11 @@ mcp-client [options] [command] [data]
 
 ### Connection Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--type <transport>` | Transport type: `local`, `http`, `https`, `sse` | `--type https` |
-| `--url <url>` | Server URL (for remote connections) | `--url https://api.example.com/mcp` |
-| `--cmd <command>` | Command to run local MCP server | `--cmd "npx my-mcp-server"` |
+| Option | Description | Example | Environment Variable |
+|--------|-------------|---------|---------------------|
+| `--type <transport>` | Transport type: `local`, `http`, `https`, `sse` | `--type https` | `MCP_TYPE` |
+| `--url <url>` | Server URL (for remote connections) | `--url https://api.example.com/mcp` | `MCP_URL` |
+| `--cmd <command>` | Command to run local MCP server | `--cmd "npx my-mcp-server"` | `MCP_CMD` |
 
 ### Tool Invocation Options
 
@@ -52,6 +52,8 @@ mcp-client [options] [command] [data]
 |--------|-------------|---------|
 | `--tool <name>` | Tool name to call | `--tool search` |
 | `--fields <params>` | Simple parameter syntax | `--fields "q=hello,limit=10"` |
+| `--json` | Output raw JSON (no formatting) | `--json` |
+| `--verbose` | Show detailed connection info | `--verbose` |
 
 ### Commands
 
@@ -101,7 +103,18 @@ npx mcp-client --type local --cmd "npx @example/mcp-server" inspect
 npx mcp-client --type sse --url https://example.com/mcp/events inspect
 ```
 
-### Unix-Friendly Usage
+### Environment Variables
+
+You can set default values using environment variables:
+
+```bash
+export MCP_URL="https://api.example.com/mcp"
+export MCP_TYPE="https"
+
+# Now you can omit --url and --type
+npx mcp-client inspect
+npx mcp-client --tool search --fields "q=test"
+```
 
 ```bash
 # Chain with other tools
