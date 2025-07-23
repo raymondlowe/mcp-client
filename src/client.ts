@@ -1,5 +1,8 @@
-import { spawn, ChildProcess } from 'child_process';
 import { validateUrl, isValidTransport } from './utils.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 export interface MCPClientOptions {
   type: string;
@@ -10,8 +13,8 @@ export interface MCPClientOptions {
 
 export class MCPClient {
   private options: MCPClientOptions;
-  private connection: any = null;
-  private childProcess?: ChildProcess;
+  private client: Client | null = null;
+  private transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport | null = null;
 
   constructor(options: MCPClientOptions) {
     this.options = options;
@@ -64,281 +67,108 @@ export class MCPClient {
     const command = cmdParts[0];
     const args = cmdParts.slice(1);
 
-    // For now, create a mock connection to simulate MCP protocol
-    // In a real implementation, this would use the MCP SDK to communicate via stdio
-    this.connection = {
-      type: 'local',
+    // Create stdio transport
+    this.transport = new StdioClientTransport({
       command,
-      args,
-      // Mock connection that simulates stdio communication
-      send: async (message: any) => {
-        // Simulate sending MCP message via stdin
-        return this.simulateLocalResponse(message);
+      args
+    });
+
+    // Create MCP client
+    this.client = new Client(
+      {
+        name: "mcp-client",
+        version: "1.0.0"
       }
-    };
+    );
+
+    // Connect to the server
+    await this.client.connect(this.transport);
   }
 
   private async connectHttp(): Promise<void> {
-    // Mock HTTP/HTTPS connection
-    // In a real implementation, this would use the MCP SDK's HTTP transport
-    this.connection = {
-      type: 'http',
-      url: this.options.url,
-      send: async (message: any) => {
-        return this.simulateHttpResponse(message);
+    // Create streamable HTTP transport
+    this.transport = new StreamableHTTPClientTransport(new URL(this.options.url!));
+
+    // Create MCP client
+    this.client = new Client(
+      {
+        name: "mcp-client",
+        version: "1.0.0"
       }
-    };
+    );
+
+    // Connect to the server
+    await this.client.connect(this.transport);
   }
 
   private async connectSSE(): Promise<void> {
-    // Mock SSE connection
-    // In a real implementation, this would use the MCP SDK's SSE transport
-    this.connection = {
-      type: 'sse',
-      url: this.options.url,
-      send: async (message: any) => {
-        return this.simulateSSEResponse(message);
+    // Create SSE transport
+    this.transport = new SSEClientTransport(new URL(this.options.url!));
+
+    // Create MCP client
+    this.client = new Client(
+      {
+        name: "mcp-client",
+        version: "1.0.0"
       }
-    };
+    );
+
+    // Connect to the server
+    await this.client.connect(this.transport);
   }
 
   async listTools(): Promise<any[]> {
-    if (!this.connection) {
+    if (!this.client) {
       throw new Error('Not connected to server');
     }
 
-    const request = {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/list',
-      params: {}
-    };
-
-    const response = await this.connection.send(request);
-    
-    if (response.error) {
-      const error = new Error(response.error.message || 'Server error');
-      (error as any).code = 'SERVER_ERROR';
-      throw error;
+    try {
+      const response = await this.client.listTools();
+      return response.tools || [];
+    } catch (error: any) {
+      const errorMessage = error.message || 'Server error';
+      const newError = new Error(errorMessage);
+      (newError as any).code = 'SERVER_ERROR';
+      throw newError;
     }
-
-    return response.result?.tools || [];
   }
 
   async callTool(toolName: string, params: Record<string, any> = {}): Promise<any> {
-    if (!this.connection) {
+    if (!this.client) {
       throw new Error('Not connected to server');
     }
 
-    const request = {
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: {
+    try {
+      const response = await this.client.callTool({
         name: toolName,
         arguments: params
-      }
-    };
-
-    const response = await this.connection.send(request);
-    
-    if (response.error) {
-      if (response.error.code === -32601) {
-        const error = new Error(`Tool '${toolName}' not found`);
-        (error as any).code = 'TOOL_NOT_FOUND';
-        throw error;
-      } else if (response.error.code === -32602) {
-        const error = new Error(`Invalid parameters for tool '${toolName}': ${response.error.message}`);
-        (error as any).code = 'INVALID_PARAMS';
-        throw error;
+      });
+      
+      return response;
+    } catch (error: any) {
+      // Handle specific MCP error cases
+      if (error.message && error.message.includes('not found')) {
+        const newError = new Error(`Tool '${toolName}' not found`);
+        (newError as any).code = 'TOOL_NOT_FOUND';
+        throw newError;
+      } else if (error.message && error.message.includes('Invalid parameters')) {
+        const newError = new Error(`Invalid parameters for tool '${toolName}': ${error.message}`);
+        (newError as any).code = 'INVALID_PARAMS';
+        throw newError;
       } else {
-        const error = new Error(response.error.message || 'Server error');
-        (error as any).code = 'SERVER_ERROR';
-        throw error;
+        const newError = new Error(error.message || 'Server error');
+        (newError as any).code = 'SERVER_ERROR';
+        throw newError;
       }
     }
-
-    return response.result;
   }
 
   async disconnect(): Promise<void> {
-    if (this.childProcess) {
-      this.childProcess.kill();
-      this.childProcess = undefined;
+    if (this.transport) {
+      await this.transport.close();
+      this.transport = null;
     }
-    this.connection = null;
+    this.client = null;
   }
 
-  // Mock implementations for demonstration
-  // In a real implementation, these would be replaced with actual MCP SDK calls
-
-  private async simulateLocalResponse(request: any): Promise<any> {
-    // Simulate tool list response
-    if (request.method === 'tools/list') {
-      return {
-        jsonrpc: '2.0',
-        id: request.id,
-        result: {
-          tools: [
-            {
-              name: 'echo',
-              description: 'Echo back the input',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  message: {
-                    type: 'string',
-                    description: 'Message to echo back'
-                  }
-                },
-                required: ['message']
-              }
-            },
-            {
-              name: 'info',
-              description: 'Get server information',
-              inputSchema: {
-                type: 'object',
-                properties: {}
-              }
-            }
-          ]
-        }
-      };
-    }
-
-    // Simulate tool call response
-    if (request.method === 'tools/call') {
-      if (request.params.name === 'echo') {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          result: {
-            content: [
-              {
-                type: 'text',
-                text: `Echo: ${request.params.arguments.message || 'No message provided'}`
-              }
-            ]
-          }
-        };
-      } else if (request.params.name === 'info') {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          result: {
-            content: [
-              {
-                type: 'text',
-                text: 'Local MCP Server - Mock Implementation'
-              }
-            ]
-          }
-        };
-      } else {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          error: {
-            code: -32601,
-            message: `Tool '${request.params.name}' not found`
-          }
-        };
-      }
-    }
-
-    throw new Error('Unknown method');
-  }
-
-  private async simulateHttpResponse(request: any): Promise<any> {
-    // Simulate HTTP MCP server responses
-    if (request.method === 'tools/list') {
-      return {
-        jsonrpc: '2.0',
-        id: request.id,
-        result: {
-          tools: [
-            {
-              name: 'search',
-              description: 'Search for information',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  q: {
-                    type: 'string',
-                    description: 'Search query'
-                  },
-                  limit: {
-                    type: 'number',
-                    description: 'Maximum number of results'
-                  }
-                },
-                required: ['q']
-              }
-            },
-            {
-              name: 'weather',
-              description: 'Get weather information',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  location: {
-                    type: 'string',
-                    description: 'Location to get weather for'
-                  }
-                },
-                required: ['location']
-              }
-            }
-          ]
-        }
-      };
-    }
-
-    if (request.method === 'tools/call') {
-      if (request.params.name === 'search') {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          result: {
-            content: [
-              {
-                type: 'text',
-                text: `Search results for: ${request.params.arguments.q || 'empty query'}`
-              }
-            ]
-          }
-        };
-      } else if (request.params.name === 'weather') {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          result: {
-            content: [
-              {
-                type: 'text',
-                text: `Weather for ${request.params.arguments.location || 'unknown location'}: Sunny, 72°F`
-              }
-            ]
-          }
-        };
-      } else {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          error: {
-            code: -32601,
-            message: `Tool '${request.params.name}' not found`
-          }
-        };
-      }
-    }
-
-    throw new Error('Unknown method');
-  }
-
-  private async simulateSSEResponse(request: any): Promise<any> {
-    // For SSE, responses would be similar to HTTP but received via Server-Sent Events
-    return this.simulateHttpResponse(request);
-  }
 }
