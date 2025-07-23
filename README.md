@@ -1,135 +1,182 @@
-# Simple MCP Client
+# MCP Client
 
-For testing connections to mcp servers, be they local or remote.
+A lightweight, unix-friendly command-line client for testing and interacting with MCP (Model Context Protocol) servers.
 
-usage:
+## Installation
 
-mcp-client --type [local:sse:shttp| --url <url for sse or shttp> --cmd <cmd line for local> [command] [data]
+```bash
+npx -y @raymondlowe/mcp-client [options] [command]
+```
 
-Examples
+## Quick Start
 
-mcp-client --type local --cmd "npx -y whatever@sometool" tool "{some json mcp data}"
-mcp-client --type sse --url https://example.com/mcp toollist
-mcp-client --type https --url https://example.com/mcp toollist
+```bash
+# Inspect available tools on a server
+npx mcp-client --url https://example.com/mcp inspect
 
-Can you see what I'm doing here? Trying to write the README.md but make it the spec as well.  Help to expand.
+# Call a tool with simple field syntax
+npx mcp-client --url https://example.com/mcp --tool getinfo --fields "username=raymond,query=weather"
 
-You are drafting a README.md for a **Simple MCP Client** CLI tool intended for testing connections to MCP servers locally or remotely via various transports (local stdio commands, Server-Sent Events (SSE), or HTTP/S). Below is an expanded, structured version that also serves as a partial spec for usage, configuration, and examples, integrating your current content and complementing it with useful details based on known MCP tooling patterns and usage references.
+# Call a tool with JSON data
+npx mcp-client --url https://example.com/mcp --tool getinfo '{"username": "raymond", "query": "weather"}'
 
-# Simple MCP Client
-
-**A lightweight command-line client for testing connections to MCP (Model Context Protocol) servers**
-Supports multiple transport types: **local stdio commands**, **SSE (Server-Sent Events)**, and **HTTP(S)**.
+# Test local MCP server
+npx mcp-client --type local --cmd "npx some-mcp-server" inspect
+```
 
 ## Features
 
-- Connect to MCP servers locally via CLI commands (stdio transport)
-- Connect remotely to MCP servers using HTTP or SSE protocols
-- Issue MCP commands with JSON-formatted data
-- Supports quick discovery and invocation of MCP tools
-- Suitable for manual debugging, exploration, and integration testing
-
-
+- **Multiple Transport Support**: local stdio, HTTP/HTTPS, SSE
+- **Tool Discovery**: Inspect servers to see available tools and their schemas
+- **Flexible Parameter Passing**: Use simple `--fields` syntax or JSON
+- **Unix-Friendly**: Pipeable output, proper exit codes, clean error messages
+- **Copy-Paste Friendly**: Inspect output shows ready-to-run commands
 
 ## Usage
 
 ```
-npx mcp-client --type <transport> [options] <command> [data]
+mcp-client [options] [command] [data]
 ```
 
-- **--type**: Transport type for connecting to the MCP server
-Valid values: `local`, `sse`, `https` (or `http`)
-- **--url**: URL of the remote MCP server (required for `sse`, `http(s)` types)
-- **--cmd**: Command line to execute local MCP server (required for `local`)
-- **command**: MCP tool/command to invoke
-- **data**: (Optional) JSON-formatted string representing the MCP data payload
+### Connection Options
 
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--type <transport>` | Transport type: `local`, `http`, `https`, `sse` | `--type https` |
+| `--url <url>` | Server URL (for remote connections) | `--url https://api.example.com/mcp` |
+| `--cmd <command>` | Command to run local MCP server | `--cmd "npx my-mcp-server"` |
 
-## Transport Types Explained
+### Tool Invocation Options
 
-| Transport | Description | Required Option |
-| :-- | :-- | :-- |
-| `local` | Runs a local MCP server command via stdio | `--cmd "<command>"` |
-| `sse` | Connects to an MCP server via SSE endpoint | `--url <SSE URL>` |
-| `https` | Connects to an MCP server over HTTP or HTTPS | `--url <HTTP URL>` |
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--tool <name>` | Tool name to call | `--tool search` |
+| `--fields <params>` | Simple parameter syntax | `--fields "q=hello,limit=10"` |
+
+### Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `inspect` | List available tools and their schemas | `mcp-client --url <url> inspect` |
+| `[tool-name]` | Call a specific tool | `mcp-client --url <url> search '{"q": "hello"}'` |
 
 ## Examples
 
-### Local MCP server
-
-Execute a local MCP server command with arguments and send MCP JSON data:
+### Tool Discovery
 
 ```bash
-mcp-client --type local --cmd "npx -y whatever@sometool" tool '{ "key": "value" }'
+# See what tools are available and their parameters
+npx mcp-client --url https://example.com/mcp inspect
+
+# Output shows copy-paste ready commands:
+# Tool: search
+#   Description: Search for information
+#   Parameters: q (required), limit (optional)
+#   Usage: mcp-client --url https://example.com/mcp --tool search --fields "q=VALUE,limit=VALUE"
 ```
 
-Example to run a local MCP server script and call the tool `"tool"` with JSON data.
-
-### SSE MCP server
-
-Connect to and call a tool on an SSE MCP server:
+### Calling Tools
 
 ```bash
-mcp-client --type sse --url https://example.com/mcp toollist
+# Simple field syntax (recommended for CLI)
+npx mcp-client --url https://example.com/mcp --tool search --fields "q=weather,limit=5"
+
+# JSON syntax (good for complex data)
+npx mcp-client --url https://example.com/mcp --tool search '{"q": "weather", "limit": 5}'
+
+# Positional arguments (tool name as command)
+npx mcp-client --url https://example.com/mcp search '{"q": "weather"}'
 ```
 
-This fetches the list of available tools from the SSE server endpoint.
-
-### HTTP/S MCP server
-
-Connect over HTTP/S and call a tool:
+### Transport Types
 
 ```bash
-mcp-client --type https --url https://example.com/mcp toollist
+# HTTP/HTTPS server
+npx mcp-client --type https --url https://api.example.com/mcp inspect
+
+# Local stdio server
+npx mcp-client --type local --cmd "npx @example/mcp-server" inspect
+
+# Server-Sent Events
+npx mcp-client --type sse --url https://example.com/mcp/events inspect
 ```
 
-Call the `toollist` tool on the remote server accessible via HTTPS.
-
-## Sample Workflow
+### Unix-Friendly Usage
 
 ```bash
-# Discover available tools first (if supported)
-mcp-client --type sse --url https://example.com/mcp toollist
+# Chain with other tools
+npx mcp-client --url <url> --tool search --fields "q=weather" | jq '.result'
 
-# Invoke a specific tool with data
-mcp-client --type https --url https://example.com/mcp mytool '{ "param": "value" }'
+# Use in scripts with proper exit codes
+if npx mcp-client --url <url> --tool validate --fields "data=test"; then
+  echo "Validation passed"
+fi
+
+# Process multiple queries
+echo -e "weather\ntraffic\nnews" | while read query; do
+  npx mcp-client --url <url> --tool search --fields "q=$query"
+done
 ```
 
+## Output Format
 
-## Configuration File (Optional)
-
-Support read from a JSON config file specifying servers, commands, URLs, and environment variables, similar to `mcp-use`:
-
+### Successful Tool Calls
 ```json
 {
-  "mcpServers": {
-    "localTool": {
-      "type": "local",
-      "command": "npx",
-      "args": ["-y", "whatever@sometool"]
-    },
-    "remoteSSE": {
-      "type": "sse",
-      "url": "https://example.com/mcp"
-    },
-    "remoteHTTP": {
-      "type": "https",
-      "url": "https://api.example.com/mcp"
-    }
-  }
+  "success": true,
+  "tool": "search",
+  "result": { ... }
 }
 ```
 
-Your client could optionally support a flag like `--config <file>` to load connections from such configuration.
+### Errors
+```json
+{
+  "success": false,
+  "error": "Tool 'invalid' not found",
+  "available_tools": ["search", "info"]
+}
+```
 
-## Notes
+### Inspect Output
+```
+Available tools on server: https://example.com/mcp
 
-- JSON data passed as `[data]` must be properly escaped in CLI shells.
-- For `local` type, the command specified in `--cmd` is run, and communication occurs via stdin/stdout using MCP protocol.
-- For remote connections (`sse`, `https`), the URL should point to a valid MCP endpoint (check server docs).
-- You can combine this client with MCP servers implemented in Python, Node.js, or other languages supporting MCP[^2].
+Tool: search
+  Description: Search for information
+  Parameters:
+    - q (string, required): Search query
+    - limit (number, optional): Maximum results
+  Usage: mcp-client --url https://example.com/mcp --tool search --fields "q=VALUE,limit=VALUE"
 
+Tool: info
+  Description: Get server information
+  Parameters: (none)
+  Usage: mcp-client --url https://example.com/mcp --tool info
+```
 
-## Additional Resources
+## Exit Codes
 
-https://www.npmjs.com/package/@modelcontextprotocol/sdk#writing-mcp-clients
+- `0`: Success
+- `1`: General error (connection failed, invalid arguments)
+- `2`: Tool not found
+- `3`: Invalid tool parameters
+- `4`: Server error
+
+## Development
+
+```bash
+# Clone and install
+git clone https://github.com/raymondlowe/mcp-client
+cd mcp-client
+npm install
+
+# Development
+npm run dev -- --help
+npm run build
+npm run test
+```
+
+## License
+
+MIT
