@@ -6,7 +6,7 @@
   "bin": {
     "mcp-client": "dist/index.js",
     "@raymondlowe/mcp-client": "dist/index.js"
-  }
+  },
   "type": "module",
   "scripts": {
     "build": "tsc",
