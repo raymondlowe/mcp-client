@@ -206,7 +206,17 @@ Test Files  3 passed (3)
 
 ## Publishing
 
-This package is automatically published to npm when GitHub releases are created. See [PUBLISHING.md](PUBLISHING.md) for detailed setup instructions and publishing options.
+This package is automatically published to npm when GitHub releases are created. For detailed setup instructions and publishing options, see [PUBLISHING.md](PUBLISHING.md).
+
+**Quick start for maintainers:**
+1. Set up `NPM_TOKEN` in repository secrets (one-time setup)
+2. Create a GitHub release to automatically publish
+3. Or use the manual publish workflow in GitHub Actions
+
+**Test your setup:**
+```bash
+npm run test:publish
+```
 
 ## License
 
