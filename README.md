@@ -185,7 +185,9 @@ git clone https://github.com/raymondlowe/mcp-client
 cd mcp-client
 npm install
 
-# Development
+## Development
+
+```bash
 npm run dev -- --help
 npm run build
 npm test   # Runs all tests using Vitest
@@ -201,6 +203,10 @@ If you see output like this, all tests have passed and your setup is correct:
 Test Files  3 passed (3)
      Tests  54 passed (54)
 ```
+
+## Publishing
+
+This package is automatically published to npm when GitHub releases are created. See [PUBLISHING.md](PUBLISHING.md) for detailed setup instructions and publishing options.
 
 ## License
 
