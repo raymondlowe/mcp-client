@@ -2,6 +2,22 @@
 
 Here are practical examples showing how to use the MCP client effectively:
 
+## Authentication
+
+For APIs that require Bearer token authentication:
+
+```bash
+# Using command line option
+npx mcp-client --url https://api.example.com/mcp --bearer your-api-token inspect
+
+# Using environment variable
+export MCP_BEARER_TOKEN="your-api-token"
+npx mcp-client --url https://api.example.com/mcp inspect
+
+# Call a tool with authentication
+npx mcp-client --url https://api.example.com/mcp --bearer your-api-token --tool search --fields "q=weather"
+```
+
 ## Basic Tool Discovery
 
 ```bash
@@ -95,8 +111,9 @@ fi
 ## Configuration with Environment Variables
 
 ```bash
-# Set default server URL
+# Set default server URL and authentication
 export MCP_URL="https://api.example.com/mcp"
+export MCP_BEARER_TOKEN="your-api-token"
 
 # Use in script
 npx mcp-client --url "$MCP_URL" inspect

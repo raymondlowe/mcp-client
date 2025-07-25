@@ -27,6 +27,7 @@ npx mcp-client --type local --cmd "npx some-mcp-server" inspect
 ## Features
 
 - **Multiple Transport Support**: local stdio, HTTP/HTTPS, SSE
+- **Authentication**: Bearer token support for API authentication
 - **Tool Discovery**: Inspect servers to see available tools and their schemas
 - **Flexible Parameter Passing**: Use simple `--fields` syntax or JSON
 - **Unix-Friendly**: Pipeable output, proper exit codes, clean error messages
@@ -45,6 +46,7 @@ mcp-client [options] [command] [data]
 | `--type <transport>` | Transport type: `local`, `http`, `https`, `sse` | `--type https` | `MCP_TYPE` |
 | `--url <url>` | Server URL (for remote connections) | `--url https://api.example.com/mcp` | `MCP_URL` |
 | `--cmd <command>` | Command to run local MCP server | `--cmd "npx my-mcp-server"` | `MCP_CMD` |
+| `--bearer <token>` | Bearer token for Authorization header | `--bearer your-api-token` | `MCP_BEARER_TOKEN` |
 
 ### Tool Invocation Options
 
@@ -63,6 +65,22 @@ mcp-client [options] [command] [data]
 | `[tool-name]` | Call a specific tool | `mcp-client --url <url> search '{"q": "hello"}'` |
 
 ## Examples
+
+### Authentication
+
+For APIs that require Bearer token authentication:
+
+```bash
+# Using command line option
+npx mcp-client --url https://api.example.com/mcp --bearer your-api-token inspect
+
+# Using environment variable
+export MCP_BEARER_TOKEN="your-api-token"
+npx mcp-client --url https://api.example.com/mcp inspect
+
+# Call a tool with authentication
+npx mcp-client --url https://api.example.com/mcp --bearer your-api-token --tool search --fields "q=weather"
+```
 
 ### Tool Discovery
 
@@ -96,6 +114,9 @@ npx mcp-client --url https://example.com/mcp search '{"q": "weather"}'
 # HTTP/HTTPS server
 npx mcp-client --type https --url https://api.example.com/mcp inspect
 
+# With Bearer token authentication
+npx mcp-client --type https --url https://api.example.com/mcp --bearer your-api-token inspect
+
 # Local stdio server
 npx mcp-client --type local --cmd "npx @example/mcp-server" inspect
 
@@ -110,8 +131,9 @@ You can set default values using environment variables:
 ```bash
 export MCP_URL="https://api.example.com/mcp"
 export MCP_TYPE="https"
+export MCP_BEARER_TOKEN="your-api-token"
 
-# Now you can omit --url and --type
+# Now you can omit --url, --type, and --bearer
 npx mcp-client inspect
 npx mcp-client --tool search --fields "q=test"
 ```
