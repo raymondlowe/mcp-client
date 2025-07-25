@@ -34,6 +34,7 @@ program
   .action(async () => {
     try {
       const options = program.opts();
+      if (options.bearer) options.bearerToken = options.bearer;
       if (options.verbose) {
         console.error(`Connecting to ${options.url || 'local server'} via ${options.type}...`);
       }
@@ -67,6 +68,7 @@ program
   .action(async (toolName, data) => {
     try {
       const options = program.opts();
+      if (options.bearer) options.bearerToken = options.bearer;
       // Determine tool name from argument or --tool option
       const tool = toolName || options.tool;
       if (!tool) {
