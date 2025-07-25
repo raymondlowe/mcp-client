@@ -15,6 +15,7 @@ export interface MCPClientOptions {
   quiet?: boolean;
   transport?: InMemoryTransport; // For testing only
   sessionId?: string; // For HTTP session tracking
+  bearerToken?: string; // For Authorization Bearer header
 }
 
 export class MCPClient {
@@ -131,8 +132,20 @@ export class MCPClient {
   }
 
   private async connectHttp(): Promise<void> {
+    // Prepare transport options
+    const transportOptions: any = {};
+    
+    // Add Authorization header if Bearer token is provided
+    if (this.options.bearerToken) {
+      transportOptions.requestInit = {
+        headers: {
+          'Authorization': `Bearer ${this.options.bearerToken}`
+        }
+      };
+    }
+
     // Create streamable HTTP transport
-    this.transport = new StreamableHTTPClientTransport(new URL(this.options.url!));
+    this.transport = new StreamableHTTPClientTransport(new URL(this.options.url!), transportOptions);
 
     // Create MCP client
     this.client = new Client(

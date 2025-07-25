@@ -20,6 +20,7 @@ program
   .option('--type <transport>', 'Transport type: local, http, https, sse', process.env.MCP_TYPE || 'https')
   .option('--url <url>', 'Server URL (for remote connections)', process.env.MCP_URL)
   .option('--cmd <command>', 'Command to run local MCP server', process.env.MCP_CMD)
+  .option('--bearer <token>', 'Bearer token for Authorization header', process.env.MCP_BEARER_TOKEN)
   .option('--tool <n>', 'Tool name to call')
   .option('--fields <params>', 'Simple parameter syntax: "key=value,key2=value2"')
   .option('--json', 'Output raw JSON (no formatting)', false)
